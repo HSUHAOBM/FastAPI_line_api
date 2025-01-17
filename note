@@ -1,0 +1,15 @@
+line_api_project/
+├── app/
+│   ├── main.py              # FastAPI 主入口
+│   ├── models.py            # 數據模型 (使用 Pydantic)
+│   ├── database.py          # 資料庫連接
+│   ├── routers/
+│   │   ├── __init__.py      # API 模組
+│   │   ├── users.py         # 示例用戶路由
+├── requirements.txt         # 依賴列表
+├── run.py                   # 啟動腳本
+
+
+
+
+watchfiles --filter python "uvicorn main:app --port 7000" .
