@@ -1,3 +1,4 @@
+from fastapi.encoders import jsonable_encoder
 from fastapi import APIRouter, HTTPException, Depends, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -5,6 +6,7 @@ from app.models.account import Account
 from app.schemas.account import AccountCreate, AccountResponse, PasswordChange, AccountUpdate
 from app.database import get_db
 from app.utils.password import validate_password, hash_password, verify_password
+from app.utils.response import success_response, fail_response
 
 router = APIRouter()
 
@@ -24,13 +26,13 @@ async def create_account(account: AccountCreate, request: Request, db: AsyncSess
     result = await db.execute(query)
     existing_account = result.scalars().first()
 
+    if existing_account:
+        return fail_response(message="Account already exists", errors={"email": "Email already registered"})
+
     # 驗證密碼格式
     validate_password(account.password)
     # 加密密碼
     account.password = hash_password(account.password)
-
-    if existing_account:
-        raise HTTPException(status_code=400, detail="Account already exists")
 
     # 新增帳號，將所有參數解包並新增 created_by
     new_account = Account(
@@ -41,10 +43,16 @@ async def create_account(account: AccountCreate, request: Request, db: AsyncSess
     await db.commit()
     await db.refresh(new_account)
 
-    return new_account
+    response_data = jsonable_encoder(
+        AccountResponse.model_validate(new_account))
+
+    return success_response(
+        data=response_data,
+        message="Account created successfully"
+    )
 
 
-@router.get("/accounts/", response_model=list[AccountResponse])
+@router.get("/accounts/")
 async def read_accounts(db: AsyncSession = Depends(get_db)):
     """
     查詢所有帳號資料
@@ -53,10 +61,18 @@ async def read_accounts(db: AsyncSession = Depends(get_db)):
     result = await db.execute(query)
     accounts = result.scalars().all()
 
-    return accounts
+    # 轉換成 JSON 可序列化的格式
+    response_data = jsonable_encoder(
+        [AccountResponse.model_validate(account) for account in accounts]
+    )
+
+    return success_response(
+        data=response_data,
+        message="Accounts retrieved successfully"
+    )
 
 
-@router.get("/accounts/{account_id}", response_model=AccountResponse)
+@router.get("/accounts/{account_id}")
 async def read_account(account_id: int, db: AsyncSession = Depends(get_db)):
     """
     查詢單一帳號資料
@@ -66,12 +82,17 @@ async def read_account(account_id: int, db: AsyncSession = Depends(get_db)):
     account = result.scalars().first()
 
     if not account:
-        raise HTTPException(status_code=404, detail="Account not found")
+        return fail_response(message="Account not found", status_code=404)
 
-    return account
+    response_data = jsonable_encoder(AccountResponse.model_validate(account))
+
+    return success_response(
+        data=response_data,
+        message="Account retrieved successfully"
+    )
 
 
-@router.put("/accounts/{account_id}", response_model=AccountResponse)
+@router.put("/accounts/{account_id}")
 async def update_account(account_id: int, account_update: AccountUpdate, request: Request, db: AsyncSession = Depends(get_db)):
     """
     更新帳號資料
@@ -82,11 +103,11 @@ async def update_account(account_id: int, account_update: AccountUpdate, request
     existing_account = result.scalars().first()
 
     if not existing_account:
-        raise HTTPException(status_code=404, detail="Account not found")
+        return fail_response(message="Account not found", status_code=404)
 
     # 驗證密碼是否正確
     if not verify_password(account_update.password, existing_account.password):
-        raise HTTPException(status_code=403, detail="Incorrect password")
+        return fail_response(message="Incorrect password", status_code=403)
 
     # 更新其他欄位，僅更新有提供的值
     for field, value in account_update.model_dump(exclude={"password"}, exclude_unset=True).items():
@@ -99,8 +120,13 @@ async def update_account(account_id: int, account_update: AccountUpdate, request
 
     await db.commit()
     await db.refresh(existing_account)
+    response_data = jsonable_encoder(
+        AccountResponse.model_validate(existing_account))
 
-    return existing_account
+    return success_response(
+        data=response_data,
+        message="Account updated successfully"
+    )
 
 
 @router.delete("/accounts/{account_id}", response_model=dict)
@@ -113,13 +139,16 @@ async def delete_account(account_id: int, db: AsyncSession = Depends(get_db)):
     account = result.scalars().first()
 
     if not account:
-        raise HTTPException(status_code=404, detail="Account not found")
+        return fail_response(message="Account not found", status_code=404)
 
     # 確認刪除操作
     await db.delete(account)
     await db.commit()
 
-    return {"message": f"Account with ID {account.id} deleted successfully!"}
+    return success_response(
+        data={"message": f"Account with ID {account.id} deleted successfully!"},
+        message="Account deleted successfully"
+    )
 
 
 @router.put("/accounts/{account_id}/password", response_model=dict)
@@ -134,13 +163,11 @@ async def change_password(account_id: int, password_data: PasswordChange, reques
     account = result.scalars().first()
 
     if not account:
-        raise HTTPException(status_code=404, detail="Account not found")
+        return fail_response(message="Account not found", status_code=404)
 
     # 驗證舊密碼
     if not verify_password(password_data.old_password, account.password):
-        raise HTTPException(
-            status_code=400, detail="Old password is incorrect"
-        )
+        return fail_response(message="Old password is incorrect", status_code=400)
 
     # 驗證新密碼格式
     validate_password(password_data.new_password)
@@ -156,4 +183,7 @@ async def change_password(account_id: int, password_data: PasswordChange, reques
     await db.commit()
     await db.refresh(account)
 
-    return {"message": "Password updated successfully"}
+    return success_response(
+        data={},
+        message="Password updated successfully"
+    )

@@ -1,6 +1,8 @@
+from app.utils.response import register_exception_handlers
 from fastapi import FastAPI
 from app.routers import users, account
 from app.db.init_db import create_tables, drop_tables
+from fastapi.exceptions import RequestValidationError
 
 
 # 定義 lifespan 方法
@@ -19,6 +21,9 @@ app = FastAPI(lifespan=lifespan)
 
 app.include_router(account.router, prefix="/api", tags=["account"])
 app.include_router(users.router, prefix="/api", tags=["users"])
+
+# 註冊自定義的驗證錯誤處理器
+register_exception_handlers(app)
 
 
 @app.get("/")
