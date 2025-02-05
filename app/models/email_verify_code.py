@@ -8,8 +8,9 @@ class EmailVerifyCode(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True,
                 nullable=False, comment="流水號 (主鍵)")
-    account_id = Column(Integer, ForeignKey(
-        "account.id"), nullable=False, comment="公司代號")
+    account_id = Column(
+        Integer, ForeignKey("account.id", ondelete="CASCADE"), nullable=False
+    )
     user_id = Column(Integer, ForeignKey("user.id"),
                      nullable=False, comment="對應的用戶 ID")
     email = Column(String(50), unique=True, nullable=False, comment="EMAIL")

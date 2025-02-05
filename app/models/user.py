@@ -2,17 +2,13 @@ from sqlalchemy import Column, Integer, String, DateTime, Enum, ForeignKey, func
 from sqlalchemy.orm import relationship
 from app.database import Base
 import enum
-
-
-class BindType(enum.Enum):
-    email = "1"
-    secret = "2"
+from app.models.account import BindType
 
 
 class UserStatus(enum.Enum):
-    bound = "1"
-    unbound = "2"
-    inactive = "3"
+    bound = "bound"
+    unbound = "unbound"
+    inactive = "inactive"
 
 
 class User(Base):
@@ -20,16 +16,17 @@ class User(Base):
 
     id = Column(Integer, primary_key=True, autoincrement=True,
                 nullable=False, comment="流水號 (主鍵)")
-    account_id = Column(Integer, ForeignKey(
-        "account.id"), nullable=False, comment="對應的公司 ID")
-    user_id = Column(String(50), nullable=False, comment="LINE USER ID")
+    account_id = Column(
+        Integer, ForeignKey("account.id", ondelete="CASCADE"), nullable=False
+    )
+    line_user_id = Column(String(50), nullable=False, comment="LINE USER ID")
     user_code = Column(String(30), nullable=True, comment="綁定工號 (如會員編號)")
     user_name = Column(String(30), nullable=True, comment="綁定姓名")
     bind_type = Column(Enum(BindType), nullable=True,
-                       comment="綁定類別 1.Email 2.暗號")
+                       comment="綁定類別 email or secret")
     bind_word = Column(String(50), nullable=True, comment="驗證的Email 或綁定用的暗號")
     status = Column(Enum(UserStatus), default=UserStatus.unbound,
-                    nullable=False, comment="狀態 (1: 已綁定, 2: 未綁定, 3: 失效)")
+                    nullable=False, comment="狀態 (bound: 已綁定, unbound: 未綁定, inactive: 失效)")
     bind_date = Column(DateTime, nullable=True, comment="綁定日期時間")
     modified_at = Column(DateTime, default=func.now(),
                          onupdate=func.now(), nullable=True, comment="修改日期")

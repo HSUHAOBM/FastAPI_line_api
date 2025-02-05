@@ -13,3 +13,20 @@ line_api_project/
 
 
 watchfiles --filter python "uvicorn main:app --port 7000" .
+watchfiles --filter python "uvicorn app.main:app --port 7000" .
+
+Alembic
+
+pip install alembic
+alembic init alembic
+
+alembic revision -m "create user table"
+alembic upgrade head
+alembic upgrade --sql head
+
+alembic history
+alembic downgrade -1
+alembic current
+
+alembic revision --autogenerate -m "Add cascade to foreign keys"
+alembic stamp head

@@ -1,6 +1,8 @@
-from pydantic import BaseModel, Field, EmailStr
+import enum
+from pydantic import BaseModel, Field, EmailStr, field_validator
 from typing import Optional
 from datetime import datetime
+from app.models.account import BindType
 
 
 # 新增帳號請求結構
@@ -15,8 +17,8 @@ class AccountCreate(BaseModel):
                                description="LINE Channel Token")
     channel_secret: str = Field(..., max_length=100,
                                 description="LINE Channel Secret")
-    bind_type: str = Field(..., max_length=1,
-                           pattern="^[12]$", description="綁定類別 (1: Email, 2: 暗號)")
+    bind_type: BindType = Field(..., description="綁定類型 (email or secret)")
+
     bind_word: str = Field(..., max_length=50, description="綁定用的密碼或驗證碼")
     status: bool = Field(default=True, description="帳號狀態，預設為啟用")
 
@@ -33,8 +35,7 @@ class AccountUpdate(BaseModel):
         None, max_length=300, description="LINE Channel Token")
     channel_secret: Optional[str] = Field(
         None, max_length=100, description="LINE Channel Secret")
-    bind_type: Optional[str] = Field(
-        None, max_length=1, pattern="^[12]$", description="綁定類別 (1: Email, 2: 暗號)")
+    bind_type: BindType = Field(..., description="綁定類型 (email or secret)")
     bind_word: Optional[str] = Field(
         None, max_length=50, description="綁定用的密碼或驗證碼")
     status: Optional[bool] = Field(None, description="帳號狀態")
@@ -50,8 +51,7 @@ class AccountResponse(BaseModel):
         None, description="LINE Channel Token")
     channel_secret: Optional[str] = Field(
         None, description="LINE Channel Secret")
-    bind_type: Optional[str] = Field(
-        None, description="綁定類別 (1: Email, 2: 暗號)")
+    bind_type: BindType = Field(..., description="綁定類型 (email or secret)")
     bind_word: Optional[str] = Field(None, description="綁定用的密碼或驗證碼")
     status: bool = Field(..., description="帳號狀態")
     created_at: datetime = Field(..., description="記錄建立時間")

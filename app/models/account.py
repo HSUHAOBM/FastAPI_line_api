@@ -1,6 +1,12 @@
-from sqlalchemy import Column, Integer, String, DateTime, Boolean, func
+from sqlalchemy import Column, Integer, String, DateTime, Boolean, Enum, func
 from sqlalchemy.orm import relationship
 from app.database import Base
+import enum
+
+
+class BindType(str, enum.Enum):
+    email = "email"
+    secret = "secret"
 
 
 class Account(Base):
@@ -25,9 +31,9 @@ class Account(Base):
                            comment="LINE Channel Token")
     channel_secret = Column(String(100), nullable=True,
                             comment="LINE Channel Secret")
-    bind_type = Column(
-        String(1), nullable=True, comment="綁定類別 (1: Email, 2: 暗號)"
-    )
+    bind_type = Column(Enum(BindType, name="bindtype_enum"),
+                       nullable=True, comment="綁定類別 email or secret")
+
     bind_word = Column(String(50), nullable=True, comment="綁定用的密碼或驗證碼")
 
     # 狀態
