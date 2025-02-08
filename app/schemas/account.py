@@ -68,3 +68,8 @@ class PasswordChange(BaseModel):
     old_password: str = Field(..., description="舊密碼")
     new_password: str = Field(..., min_length=8,
                               max_length=255, description="新密碼，至少 8 個字元")
+
+
+class LoginRequest(BaseModel):
+    email: str
+    password: str

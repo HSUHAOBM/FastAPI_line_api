@@ -1,3 +1,4 @@
+from fastapi.routing import APIRoute
 from app.utils.response import register_exception_handlers
 from fastapi import FastAPI
 from app.routers import users, account
@@ -10,6 +11,12 @@ async def lifespan(app: FastAPI):
     """
     Lifespan 事件處理器，用於應用啟動和關閉時執行邏輯。
     """
+
+    # print("已加載的路由:")
+    # for route in app.routes:
+    #     if isinstance(route, APIRoute):
+    #         print(f"Path: {route.path}, Name: {route.name}")
+
     # 在啟動時初始化資料庫
     # await drop_tables()
     await create_tables()
