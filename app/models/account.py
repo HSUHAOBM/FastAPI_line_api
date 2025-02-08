@@ -5,8 +5,13 @@ import enum
 
 
 class BindType(str, enum.Enum):
-    email = "email"
-    secret = "secret"
+    EMAIL = "email"
+    SECRET = "secret"
+
+
+class RoleType(str, enum.Enum):
+    ADMIN = "admin"
+    USER = "user"
 
 
 class Account(Base):
@@ -47,6 +52,9 @@ class Account(Base):
     updated_at = Column(DateTime, default=func.now(),
                         onupdate=func.now(), nullable=True, comment="記錄更新時間")
     modified_by = Column(String(30), nullable=True, comment="記錄修改者")
+    # 權限
+    role = Column(Enum(RoleType, name="role_enum"), nullable=False,
+                  default=RoleType.USER, comment="用戶角色")
 
     # 定義與 User 的一對多關係
     users = relationship("User", back_populates="account")

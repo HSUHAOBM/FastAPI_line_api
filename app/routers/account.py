@@ -225,11 +225,6 @@ async def login(request: LoginRequest, req: Request, db: AsyncSession = Depends(
         "access_token": token,
         "token_type": "bearer"
     }
-    # return success_response(
-    #     data={"token": token, "token_type": "bearer",
-    #           "account_id": account.id, "email": account.email},
-    #     message="登入成功"
-    # )
 
 
 # 自定義表單類，用於替代默認的 OAuth2PasswordRequestForm
@@ -251,7 +246,8 @@ async def login_for_access_token(form_data: Annotated[CustomOAuth2PasswordReques
     if not account or not verify_password(form_data.password, account.password):
         return fail_response(message="帳號或密碼錯誤", status_code=401)
 
-    token = create_jwt_token({"sub": account.email, "account_id": account.id})
+    token = create_jwt_token({"sub": account.email, "account_id": account.id,
+                              "role": account.role.value})
     return Token(access_token=token, token_type="bearer")
 
 

@@ -2,7 +2,7 @@ import enum
 from pydantic import BaseModel, Field, EmailStr, field_validator
 from typing import Optional
 from datetime import datetime
-from app.models.account import BindType
+from app.models.account import BindType, RoleType
 
 
 # 新增帳號請求結構
@@ -22,6 +22,8 @@ class AccountCreate(BaseModel):
     bind_word: str = Field(..., max_length=50, description="綁定用的密碼或驗證碼")
     status: bool = Field(default=True, description="帳號狀態，預設為啟用")
 
+    role: RoleType = Field(default=RoleType.USER, description="用戶角色")
+
 
 # 更新帳號請求結構
 class AccountUpdate(BaseModel):
@@ -39,6 +41,7 @@ class AccountUpdate(BaseModel):
     bind_word: Optional[str] = Field(
         None, max_length=50, description="綁定用的密碼或驗證碼")
     status: Optional[bool] = Field(None, description="帳號狀態")
+    role: RoleType = Field(default=RoleType.USER, description="用戶角色")
 
 
 class AccountResponse(BaseModel):
@@ -58,6 +61,7 @@ class AccountResponse(BaseModel):
     created_by: Optional[str] = Field(None, description="記錄建立者")
     updated_at: Optional[datetime] = Field(None, description="記錄更新時間")
     modified_by: Optional[str] = Field(None, description="記錄修改者")
+    role: RoleType = Field(default=RoleType.USER, description="用戶角色")
 
     class Config:
         orm_mode = True

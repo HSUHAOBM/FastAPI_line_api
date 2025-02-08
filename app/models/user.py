@@ -6,9 +6,9 @@ from app.models.account import BindType
 
 
 class UserStatus(enum.Enum):
-    bound = "bound"
-    unbound = "unbound"
-    inactive = "inactive"
+    BOUND = "bound"
+    UNBOUND = "unbound"
+    INACTIVE = "inactive"
 
 
 class User(Base):
@@ -25,8 +25,8 @@ class User(Base):
     bind_type = Column(Enum(BindType), nullable=True,
                        comment="綁定類別 email or secret")
     bind_word = Column(String(50), nullable=True, comment="驗證的Email 或綁定用的暗號")
-    status = Column(Enum(UserStatus), default=UserStatus.unbound,
-                    nullable=False, comment="狀態 (bound: 已綁定, unbound: 未綁定, inactive: 失效)")
+    status = Column(Enum(UserStatus), default=UserStatus.UNBOUND,
+                    nullable=False, comment="狀態 (BOUND: 已綁定, UNBOUND: 未綁定, inactive: 失效)")
     bind_date = Column(DateTime, nullable=True, comment="綁定日期時間")
     modified_at = Column(DateTime, default=func.now(),
                          onupdate=func.now(), nullable=True, comment="修改日期")

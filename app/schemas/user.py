@@ -20,7 +20,7 @@ class UserCreate(BaseModel):
     bind_word: Optional[str] = Field(
         None, max_length=50, description="驗證的Email 或綁定用的暗號")
     status: Optional[UserStatus] = Field(
-        UserStatus.bound, description="使用者狀態 (1: 已綁定, 2: 未綁定, 3: 失效)")
+        UserStatus.BOUND, description="使用者狀態 (1: 已綁定, 2: 未綁定, 3: 失效)")
 
 
 class UserResponse(BaseModel):
@@ -35,7 +35,7 @@ class UserResponse(BaseModel):
     bind_type: BindType = Field(..., description="綁定類型 (email or secret)")
     bind_word: Optional[str] = Field(None, description="驗證的Email 或綁定用的暗號")
     status: Optional[UserStatus] = Field(
-        UserStatus.bound, description="使用者狀態 (1: 已綁定, 2: 未綁定, 3: 失效)")
+        UserStatus.BOUND, description="使用者狀態 (1: 已綁定, 2: 未綁定, 3: 失效)")
     bind_date: Optional[datetime] = Field(None, description="綁定日期時間")
     modified_at: Optional[datetime] = Field(None, description="修改日期")
     modified_by: Optional[str] = Field(None, description="修改者")
@@ -58,4 +58,4 @@ class UserUpdate(BaseModel):
     bind_word: Optional[str] = Field(
         None, max_length=50, description="驗證的Email 或綁定用的暗號")
     status: Optional[UserStatus] = Field(
-        UserStatus.bound, description="使用者狀態 (1: 已綁定, 2: 未綁定, 3: 失效)")
+        UserStatus.BOUND, description="使用者狀態 (1: 已綁定, 2: 未綁定, 3: 失效)")
