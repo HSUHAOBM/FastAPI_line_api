@@ -40,8 +40,11 @@ def verify_jwt_token(token: str = Depends(oauth2_scheme)):
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         account_id = payload.get("account_id")
-        if account_id is None:
-            raise HTTPException(status_code=401, detail="Invalid token")
+        role = payload.get("role")
+
+        if account_id is None or role is None:
+            raise HTTPException(status_code=401, detail="Token 無效")
+
         return payload  # 回傳完整的 payload
     except jwt.ExpiredSignatureError:
         raise HTTPException(status_code=401, detail="Token 已過期")

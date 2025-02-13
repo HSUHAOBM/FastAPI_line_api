@@ -17,7 +17,7 @@ async def lifespan(app: FastAPI):
     """
 
     # 在啟動時初始化資料庫
-    await drop_tables()
+    # await drop_tables()
     await create_tables()
 
     # 初始化管理員帳號

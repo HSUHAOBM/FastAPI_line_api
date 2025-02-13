@@ -23,7 +23,10 @@ async def create_user(
     - 驗證是否有重複的Account 與 LINE uid
     """
     token_account_id = token_data.get("account_id")
-    if token_account_id != user.account_id:
+    role = token_data.get("role")
+
+    # 只有 `admin` 可以新增其他帳號的使用者，普通用戶只能新增自己的
+    if role != "admin" and token_account_id != user.account_id:
         return fail_response(message="您沒有權限新增其他帳號的使用者", status_code=403)
 
     query = select(User).filter(
@@ -61,8 +64,11 @@ async def read_users(
     查詢所有使用者資料
     """
     token_account_id = token_data.get("account_id")
+    role = token_data.get("role")
 
-    query = select(User).filter(User.account_id == token_account_id)
+    query = select(User)
+    if role != "admin":
+        query = query.filter(User.account_id == token_account_id)
     result = await db.execute(query)
     users = result.scalars().all()
 
@@ -83,12 +89,13 @@ async def read_user(
     查詢單一使用者資料
     """
     token_account_id = token_data.get("account_id")
+    role = token_data.get("role")
 
     query = select(User).filter(User.id == user_id)
     result = await db.execute(query)
     user = result.scalars().first()
 
-    if not user or user.account_id != token_account_id:
+    if not user or (role != "admin" and user.account_id != token_account_id):
         return fail_response(message="User not found or access denied", status_code=404)
 
     response_data = jsonable_encoder(UserResponse.model_validate(user))
@@ -108,12 +115,13 @@ async def update_user(
     更新使用者資料
     """
     token_account_id = token_data.get("account_id")
+    role = token_data.get("role")
 
     query = select(User).filter(User.id == user_id)
     result = await db.execute(query)
     existing_user = result.scalars().first()
 
-    if not existing_user or existing_user.account_id != token_account_id:
+    if not existing_user or (role != "admin" and existing_user.account_id != token_account_id):
         return fail_response(message="User not found or access denied", status_code=404)
 
     for field, value in user_update.model_dump(exclude_unset=True).items():
@@ -141,12 +149,13 @@ async def delete_user(
     刪除使用者資料
     """
     token_account_id = token_data.get("account_id")
+    role = token_data.get("role")
 
     query = select(User).filter(User.id == user_id)
     result = await db.execute(query)
     user = result.scalars().first()
 
-    if not user or user.account_id != token_account_id:
+    if not user or (role != "admin" and user.account_id != token_account_id):
         return fail_response(message="User not found or access denied", status_code=404)
 
     await db.delete(user)

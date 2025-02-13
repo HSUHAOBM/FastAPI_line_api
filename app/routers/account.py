@@ -15,12 +15,17 @@ router = APIRouter()
 
 
 @router.post("/accounts/", response_model=AccountResponse)
-async def create_account(account: AccountCreate, request: Request, db: AsyncSession = Depends(get_db)):
+async def create_account(account: AccountCreate, request: Request, db: AsyncSession = Depends(get_db),
+                         token_data: dict = Depends(verify_jwt_token)):
     """
-    新增帳號資料
+    新增帳號資料、只有管理員能新增帳號
     - 驗證是否有重複的 Email
     - 加密密碼並儲存
     """
+
+    if token_data.get("role") != "admin":
+        return fail_response(message="您沒有權限執行此操作", status_code=403)
+
     # 獲取用戶 IP 地址
     client_host = request.client.host
 
@@ -56,10 +61,15 @@ async def create_account(account: AccountCreate, request: Request, db: AsyncSess
 
 
 @router.get("/accounts/")
-async def read_accounts(db: AsyncSession = Depends(get_db)):
+async def read_accounts(db: AsyncSession = Depends(get_db),
+                        token_data: dict = Depends(verify_jwt_token)):
     """
     查詢所有帳號資料
+    只有管理員能查詢所有帳號
     """
+    if token_data.get("role") != "admin":
+        return fail_response(message="您沒有權限執行此操作", status_code=403)
+
     query = select(Account)
     result = await db.execute(query)
     accounts = result.scalars().all()
@@ -76,10 +86,24 @@ async def read_accounts(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/accounts/{account_id}")
-async def read_account(account_id: int, db: AsyncSession = Depends(get_db)):
+async def read_account(
+    account_id: int,
+    db: AsyncSession = Depends(get_db),
+    token_data: dict = Depends(verify_jwt_token)  # 驗證 JWT 並獲取角色
+):
     """
     查詢單一帳號資料
+    - 一般用戶只能查詢自己的帳號
+    - 管理員可以查詢所有帳號
     """
+    token_account_id = token_data.get("account_id")
+    role = token_data.get("role")
+
+    # 只有 `admin` 可以查詢所有帳號，普通用戶只能查自己的
+    if role != "admin" and token_account_id != account_id:
+        return fail_response(message="您沒有權限查看其他用戶的資料", status_code=403)
+
+    # 查詢帳號
     query = select(Account).filter(Account.id == account_id)
     result = await db.execute(query)
     account = result.scalars().first()
@@ -95,46 +119,68 @@ async def read_account(account_id: int, db: AsyncSession = Depends(get_db)):
     )
 
 
-@router.get("/accounts/{account_id}")
-async def read_account(
+@router.put("/accounts/{account_id}")
+async def update_account(
     account_id: int,
+    account_update: AccountUpdate,
+    request: Request,
     db: AsyncSession = Depends(get_db),
-    token_data: dict = Depends(verify_jwt_token)  # 驗證 JWT 並提取 token 資訊
+    token_data: dict = Depends(verify_jwt_token)  # 驗證 JWT 並獲取角色
 ):
     """
-    查詢單一帳號資料
-    - 僅限用戶查詢自己的帳號資料
+    更新帳號資料
+    - 一般用戶只能修改自己的帳號
+    - 管理員可以修改所有帳號
     """
-    # 從 token 中提取的 account_id 必須與路由中的 account_id 一致
     token_account_id = token_data.get("account_id")
-    if token_account_id != account_id:
-        raise HTTPException(
-            status_code=403,
-            detail="您沒有權限查看其他用戶的資料"
-        )
+    role = token_data.get("role")
 
-    # 查詢目標帳號
+    # 只有 `admin` 能修改所有帳號，普通用戶只能改自己
+    if role != "admin" and token_account_id != account_id:
+        return fail_response(message="您沒有權限修改其他用戶的資料", status_code=403)
+
     query = select(Account).filter(Account.id == account_id)
     result = await db.execute(query)
-    account = result.scalars().first()
+    existing_account = result.scalars().first()
 
-    if not account:
+    if not existing_account:
         return fail_response(message="Account not found", status_code=404)
 
-    # 返回序列化的帳號資料
-    response_data = jsonable_encoder(AccountResponse.model_validate(account))
+    # 驗證密碼是否正確
+    if role != "admin" and not verify_password(account_update.password, existing_account.password):
+        return fail_response(message="Incorrect password", status_code=403)
+
+    # 避免普通用戶修改 `role` `password`
+    update_data = account_update.model_dump(
+        exclude={"role", "password"}, exclude_unset=True)
+
+    for field, value in update_data.items():
+        setattr(existing_account, field, value)
+
+    existing_account.modified_by = request.client.host
+
+    await db.commit()
+    await db.refresh(existing_account)
 
     return success_response(
-        data=response_data,
-        message="Account retrieved successfully"
+        data={"account_id": account_id},
+        message="Account updated successfully"
     )
 
 
 @router.delete("/accounts/{account_id}", response_model=dict)
-async def delete_account(account_id: int, db: AsyncSession = Depends(get_db)):
+async def delete_account(account_id: int, db: AsyncSession = Depends(get_db),
+                         token_data: dict = Depends(verify_jwt_token)):
     """
     刪除帳號資料
     """
+    role = token_data.get("role")
+    if role != "admin":
+        return fail_response(message="您沒有權限執行此操作", status_code=403)
+
+    if token_data.get("account_id") == account_id:
+        return fail_response(message="管理員不能刪除自己的帳號", status_code=403)
+
     query = select(Account).filter(Account.id == account_id)
     result = await db.execute(query)
     account = result.scalars().first()
@@ -158,21 +204,19 @@ async def change_password(
     password_data: PasswordChange,
     request: Request,
     db: AsyncSession = Depends(get_db),
-    token_data: dict = Depends(verify_jwt_token)  # 驗證 JWT 並提取 token 資訊
+    token_data: dict = Depends(verify_jwt_token)  # 驗證 JWT 並獲取角色
 ):
     """
     修改帳號密碼
-    - 驗證用戶身份（只能修改自己的密碼）
-    - 驗證舊密碼
-    - 設定新密碼
+    - 一般用戶只能修改自己的密碼
+    - 管理員可以修改任何用戶的密碼，但不需要驗證舊密碼
     """
-    # 從 token 中提取的 account_id 必須與路由中的 account_id 一致
     token_account_id = token_data.get("account_id")
-    if token_account_id != account_id:
-        raise HTTPException(
-            status_code=403,
-            detail="您沒有權限修改其他用戶的密碼"
-        )
+    role = token_data.get("role")
+
+    # 普通用戶只能修改自己的密碼，管理員可以修改所有人
+    if role != "admin" and token_account_id != account_id:
+        return fail_response(message="您沒有權限修改其他用戶的密碼", status_code=403)
 
     # 查詢目標帳號
     query = select(Account).filter(Account.id == account_id)
@@ -182,9 +226,10 @@ async def change_password(
     if not account:
         return fail_response(message="Account not found", status_code=404)
 
-    # 驗證舊密碼
-    if not verify_password(password_data.old_password, account.password):
-        return fail_response(message="Old password is incorrect", status_code=400)
+    # 如果是普通用戶，則必須驗證舊密碼
+    if role != "admin":
+        if not verify_password(password_data.old_password, account.password):
+            return fail_response(message="Old password is incorrect", status_code=400)
 
     # 驗證新密碼格式
     validate_password(password_data.new_password)
@@ -195,7 +240,7 @@ async def change_password(
     # 獲取用戶 IP 地址
     client_host = request.client.host
     # 更新修改時間和修改人
-    account.modified_by = client_host  # 記錄用戶的 IP
+    account.modified_by = client_host  # 記錄修改者的 IP
 
     await db.commit()
     await db.refresh(account)
@@ -220,7 +265,8 @@ async def login(request: LoginRequest, req: Request, db: AsyncSession = Depends(
         return fail_response(message="帳號或密碼錯誤", status_code=401)
 
     # 產生 JWT Token
-    token = create_jwt_token({"sub": account.email, "account_id": account.id})
+    token = create_jwt_token({"sub": account.email, "account_id": account.id,
+                              "role": account.role.value})
     return {
         "access_token": token,
         "token_type": "bearer"
